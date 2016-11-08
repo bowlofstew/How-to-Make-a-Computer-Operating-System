@@ -1,13 +1,9 @@
-
 #include <os.h>
-
 #include <x86.h>
 #include <keyboard.h>
 
 
 extern "C" {
-
-
 
 regs_t cpu_cpuid(int code)
 {
@@ -52,17 +48,17 @@ u32 cpu_vendor_name(char *name)
 
 void schedule();
 
-idtdesc 	kidt[IDTSIZE]; 		/* Table de IDT */
-int_desc 	intt[IDTSIZE]; 		/* Table des fonctions interruptions */
+idtdesc 	kidt[IDTSIZE]; 		/* IDT table */
+int_desc 	intt[IDTSIZE]; 		/* Interruptions functions tables */
 gdtdesc 	kgdt[GDTSIZE];		/* GDT */
 tss 		default_tss;
 gdtr 		kgdtr;				/* GDTR */
-idtr 		kidtr; 				/* Registre IDTR */
+idtr 		kidtr; 				/* IDTR registry */
 u32 *		stack_ptr=0;
 
 /*
- * 'init_desc' initialise un descripteur de segment situe en gdt ou en ldt.
- * 'desc' est l'adresse lineaire du descripteur a initialiser.
+ * 'init_desc' initialize a segment descriptor in gdt or ldt.
+ * 'desc' is a pointer to the address
  */
 void init_gdt_desc(u32 base, u32 limite, u8 acces, u8 other,struct gdtdesc *desc)
 {
@@ -78,10 +74,7 @@ void init_gdt_desc(u32 base, u32 limite, u8 acces, u8 other,struct gdtdesc *desc
 
 
 /*
- * Cette fonction initialise la GDT apres que le kernel soit charge 
- * en memoire. Une GDT est deja operationnelle, mais c'est celle qui
- * a ete initialisee par le secteur de boot et qui ne correspond
- * pas forcement a celle que l'on souhaite.
+ * This function initialize the GDT after the kernel is loaded.
  */
 void init_gdt(void)
 {
@@ -91,7 +84,7 @@ void init_gdt(void)
 	default_tss.esp0 = 0x1FFF0;
 	default_tss.ss0 = 0x18;
 
-	/* initialisation des descripteurs de segment */
+	/* initialize gdt segments */
 	init_gdt_desc(0x0, 0x0, 0x0, 0x0, &kgdt[0]);
 	init_gdt_desc(0x0, 0xFFFFF, 0x9B, 0x0D, &kgdt[1]);	/* code */
 	init_gdt_desc(0x0, 0xFFFFF, 0x93, 0x0D, &kgdt[2]);	/* data */
@@ -103,17 +96,17 @@ void init_gdt(void)
 
 	init_gdt_desc((u32) & default_tss, 0x67, 0xE9, 0x00, &kgdt[7]);	/* descripteur de tss */
 
-	/* initialisation de la structure pour GDTR */
+	/* initialize the gdtr structure */
 	kgdtr.limite = GDTSIZE * 8;
 	kgdtr.base = GDTBASE;
 
-	/* recopie de la GDT a son adresse */
+	/* copy the gdtr to its memory area */
 	memcpy((char *) kgdtr.base, (char *) kgdt, kgdtr.limite);
 
-	/* chargement du registre GDTR */
+	/* load the gdtr registry */
 	asm("lgdtl (kgdtr)");
 
-	/* initialisation des segments */
+	/* initiliaz the segments */
 	asm("   movw $0x10, %ax	\n \
             movw %ax, %ds	\n \
             movw %ax, %es	\n \
@@ -348,19 +341,16 @@ void isr_PF_exc(void)
 
 
 /*
- * Cette fonction initialise la IDT apres que le kernel soit charge 
- * en memoire. 
+ * Init IDT after kernel is loaded
  */
 void init_idt(void)
 {
-	/* init irq */
-	
-
+	/* Init irq */
 	int i;
 	for (i = 0; i < IDTSIZE; i++) 
 		init_idt_desc(0x08, (u32)_asm_schedule, INTGATE, &kidt[i]); // 
 	
-	/* Les vecteurs 0 -> 31 sont reserves pour les exceptions */
+	/* Vectors  0 -> 31 are for exceptions */
 	init_idt_desc(0x08, (u32) _asm_exc_GP, INTGATE, &kidt[13]);		/* #GP */
 	init_idt_desc(0x08, (u32) _asm_exc_PF, INTGATE, &kidt[14]);     /* #PF */
 	
@@ -374,33 +364,33 @@ void init_idt(void)
 	kidtr.base = IDTBASE;
 	
 	
-	/* Recopie de la IDT a son adresse */
+	/* Copy the IDT to the memory */
 	memcpy((char *) kidtr.base, (char *) kidt, kidtr.limite);
 
-	/* Chargement du registre IDTR */
+	/* Load the IDTR registry */
 	asm("lidtl (kidtr)");
 }
 
 
 void init_pic(void)
 {
-	/* Initialisation de ICW1 */
+	/* Initialization of ICW1 */
 	io.outb(0x20, 0x11);
 	io.outb(0xA0, 0x11);
 
-	/* Initialisation de ICW2 */
-	io.outb(0x21, 0x20);	/* vecteur de depart = 32 */
-	io.outb(0xA1, 0x70);	/* vecteur de depart = 96 */
+	/* Initialization of ICW2 */
+	io.outb(0x21, 0x20);	/* start vector = 32 */
+	io.outb(0xA1, 0x70);	/* start vector = 96 */
 
-	/* Initialisation de ICW3 */
+	/* Initialization of ICW3 */
 	io.outb(0x21, 0x04);
 	io.outb(0xA1, 0x02);
 
-	/* Initialisation de ICW4 */
+	/* Initialization of ICW4 */
 	io.outb(0x21, 0x01);
 	io.outb(0xA1, 0x01);
 
-	/* masquage des interruptions */
+	/* mask interrupts */
 	io.outb(0x21, 0x0);
 	io.outb(0xA1, 0x0);
 }
@@ -657,4 +647,3 @@ int handle_signal(int sig)
 
 
 }
-
